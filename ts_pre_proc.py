@@ -10,12 +10,13 @@ lowess = sm.nonparametric.lowess
 
 # Apply a smoothing algorithm to the series
 def smoothing(pd_series, x, method):
+    frac = 0.06
     y = None
     if method == "lowess-gam":
-        frac = 0.1
         y = lowess(pd_series, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
         lams = np.logspace(-3, 5, 5)
-        gam = LinearGAM(s(0, n_splines=40, basis="ps")).gridsearch(pd_series.index[:, None], y, lam=lams)
+        pd_series = pd.Series(y).dropna()
+        gam = LinearGAM(s(0, n_splines=40, basis="ps")).gridsearch(pd_series.index[:, None], pd_series, lam=lams)
         print(gam.summary())
         y = gam.predict(x)
         method = "LOWESS " + str(frac) + " LinearGAM"
@@ -26,7 +27,6 @@ def smoothing(pd_series, x, method):
         y = gam.predict(x)
         method = "LinearGAM"
     elif method == "lowess":
-        frac = 0.1
         y = lowess(pd_series, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
         method = "LOWESS " + str(frac)
     return pd.Series(y), method
