@@ -1,4 +1,6 @@
 import datetime
+import random
+
 import pandas as pd
 import os
 import json
@@ -95,3 +97,8 @@ def show_images(data, dates, start_date, image_size):
             i += 1
     plt.tight_layout()
     plt.show()
+
+
+def plot_multi_series(series_list, color):
+    for series in series_list:
+        plt.plot(series, color=color, label=color)
