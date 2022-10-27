@@ -36,7 +36,7 @@ resolution = 10
 geom, rss_size = utils.load_geometry("Buffer3.geojson", resolution)
 
 # Create list of days
-slots = utils.all_days("2017-01-01", "2022-10-17", "14D", 14)
+slots = utils.all_days("2017-01-01", "2022-10-17", "7D", 7)
 # create a list of requests
 list_of_requests = [utils.get_request(config, evalscript_raw, slot, geom, rss_size, "ndvi_gndvi_buffer3") for slot in slots]
 list_of_requests = [request.download_list[0] for request in list_of_requests]
@@ -49,14 +49,14 @@ data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_t
 def main_multi():
     # Create time-series for one pixel
     x_inc, x_dates, h_series, m_series = ts_pre_proc.multi_time_series(data, slots, "pixels.csv", 1)
-    h_series, method = ts_pre_proc.smoothing_multi_ts(h_series, x_inc, "lowess-gam")
-    m_series, method = ts_pre_proc.smoothing_multi_ts(m_series, x_inc, "lowess-gam")
+    h_series, method = ts_pre_proc.smoothing_multi_ts(h_series, x_inc, "lowess-gam2")
+    m_series, method = ts_pre_proc.smoothing_multi_ts(m_series, x_inc, "lowess-gam2")
 
     utils.plot_multi_series(h_series, "b")
     utils.plot_multi_series(m_series, "r")
-    plt.title("GNDVI - " + method + " smoothing")
+    plt.title("GNDVI - " + method)
     plt.ylabel("GNDVI")
-    plt.xlabel("BI-SETTIMANA")
+    plt.xlabel("SETTIMANA")
     hpd = pd.concat(h_series, axis=1)
     hpd["date"] = x_dates
     hpd.to_csv("healty_bw.csv")
@@ -68,24 +68,23 @@ def main_multi():
 
 def main():
 
-    x_inc, x_dates, series = ts_pre_proc.single_time_series(data, slots, 2, 3, 1)
+    x_inc, x_dates, series = ts_pre_proc.single_time_series(data, slots, 3, 2, 0)
 
     series = pd.Series(data=series)
-    print(series)
     filtered = series.dropna()
     print(len(filtered))
-    plt.scatter(filtered.index, filtered)
 
-    y, method = ts_pre_proc.smoothing(series, x_inc, "lowess-gam")
+    y, method = ts_pre_proc.smoothing(series, x_inc, "lowess-gam2", True)
 
-    plt.title("GNDVI - " + method + " smoothing")
-    plt.plot(y, color="g")
-    plt.ylabel("GNDVI")
-    plt.xlabel("BI-SETTIMANA")
+    plt.scatter(filtered.index, filtered, alpha=0.5, color="lightblue")
+    plt.title("NDVI - " + method)
+    plt.plot(y, color="r")
+    plt.ylabel("NDVI")
+    plt.xlabel("SETTIMANA")
     plt.show()
 # SMOOTHING
 
-main_multi()
+main()
 # PLOTTING AND SAVING
 '''to_save = pd.Series(y, x_dates)
 to_save2 = pd.Series(y, x_inc)
