@@ -78,7 +78,7 @@ def single_time_series(data, slots, x, y, channel):
     x_inc = []
     x_dates = []
     for idx, image in enumerate(data):
-        series.append(image[x, y, channel])
+        series.append(image[y, x, channel])
         x_inc.append(idx)
         x_dates.append(slots[idx][0])
     return x_inc, x_dates, pd.Series(series)
@@ -106,3 +106,24 @@ def multi_time_series(data, slots, coord_file, channel):
             else:
                 modified_series.append(series)
     return x_inc, x_dates, healthy_series, modified_series
+
+
+def full_image_time_series(data, slots, channel):
+    image_series = []
+    x_inc = []
+    x_dates = []
+    height, width = data[0].shape[:-1]
+    print(height, width)
+    for idx, image in enumerate(data):
+        x_inc.append(idx)
+        x_dates.append(slots[idx][0])
+
+    for y in range(height):
+        for x in range(width):
+            series = []
+            for idx, image in enumerate(data):
+                series.append(image[y, x, channel])
+            series = pd.Series(series)
+            image_series.append(series)
+    return x_inc, x_dates, image_series
+
