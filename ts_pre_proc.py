@@ -30,16 +30,17 @@ def residual_analysis(y1, y2, plot=False):
 
 
 # Apply a smoothing algorithm to the series
-def smoothing(pd_series, x, method, plot=False):
+def smoothing(pd_series, method, plot=False):
     frac = 0.04
     n_splines = 72
     lam = 0.1
     lams = np.logspace(-3, 5, 5)
     y = None
+    x = pd_series.index
     if method == "lowess-gam":
         y = lowess(pd_series, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
-        pd_series = pd.Series(y).dropna()
-        gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(pd_series.index[:, None], pd_series)
+        temp = pd.Series(y).dropna()
+        gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(temp.index[:, None], temp)
         # gam = LinearGAM(s(0, n_splines=n_splines, basis="ps")).gridsearch(pd_series.index[:, None], pd_series, lam=lams)
         y = gam.predict(x)
         method = "LOWESS " + str(frac) + " -> LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
@@ -52,8 +53,8 @@ def smoothing(pd_series, x, method, plot=False):
         y = gam.predict(x)
         method = "LOWESS " + str(frac) + " -> Outlier Removal -> LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
     elif method == "gam":
-        pd_series = pd_series.dropna()
-        gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(pd_series.index[:, None], pd_series)
+        temp = pd_series.dropna()
+        gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(temp.index[:, None], temp)
         print(gam.summary())
         y = gam.predict(x)
         method = "LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
@@ -64,10 +65,10 @@ def smoothing(pd_series, x, method, plot=False):
 
 
 # Apply smoothing to multiple time series (same x)
-def smoothing_multi_ts(series_list, x, method):
+def smoothing_multi_ts(series_list, method):
     smoothed = []
     for series in series_list:
-        y, method_t = smoothing(series, x, method)
+        y, method_t = smoothing(series, method)
         smoothed.append(y)
     return smoothed, method_t
 
@@ -75,23 +76,19 @@ def smoothing_multi_ts(series_list, x, method):
 # Extract one pixel time series
 def single_time_series(data, slots, x, y, channel):
     series = []
-    x_inc = []
     x_dates = []
     for idx, image in enumerate(data):
         series.append(image[y, x, channel])
-        x_inc.append(idx)
         x_dates.append(slots[idx][0])
-    return x_inc, x_dates, pd.Series(series)
+    return x_dates, pd.Series(series)
 
 
 # Extract multiple time series
 def multi_time_series(data, slots, coord_file, channel):
     healthy_series = []
     modified_series = []
-    x_inc = []
     x_dates = []
     for idx, image in enumerate(data):
-        x_inc.append(idx)
         x_dates.append(slots[idx][0])
     with open(coord_file, "r") as file:
         lines = file.readlines()
@@ -105,17 +102,15 @@ def multi_time_series(data, slots, coord_file, channel):
                 healthy_series.append(series)
             else:
                 modified_series.append(series)
-    return x_inc, x_dates, healthy_series, modified_series
+    return x_dates, healthy_series, modified_series
 
 
 def full_image_time_series(data, slots, channel):
     image_series = []
-    x_inc = []
     x_dates = []
     height, width = data[0].shape[:-1]
     print(height, width)
     for idx, image in enumerate(data):
-        x_inc.append(idx)
         x_dates.append(slots[idx][0])
 
     for y in range(height):
@@ -125,5 +120,5 @@ def full_image_time_series(data, slots, channel):
                 series.append(image[y, x, channel])
             series = pd.Series(series)
             image_series.append(series)
-    return x_inc, x_dates, image_series
+    return x_dates, image_series
 
