@@ -47,12 +47,12 @@ def print_file_names(folder_name):
             print(os.path.join(folder, filename))
 
 
-def get_request(config, evalscript, time_interval, geom=None, rss_size=None, data_folder=None, mimetype=MimeType.TIFF):
+def get_request(config, evalscript, time_interval, geom=None, rss_size=None, data_folder=None, mimetype=MimeType.TIFF, data_coll=DataCollection.SENTINEL2_L2A):
     return SentinelHubRequest(
         evalscript=evalscript,
         input_data=[
             SentinelHubRequest.input_data(
-                data_collection=DataCollection.SENTINEL2_L2A,
+                data_collection=data_coll,
                 time_interval=time_interval,
                 mosaicking_order=MosaickingOrder.LEAST_CC,
             )
@@ -64,7 +64,6 @@ def get_request(config, evalscript, time_interval, geom=None, rss_size=None, dat
         config=config,
         data_folder= data_folder
     )
-    # true_color_imgs = request_true_color.get_data()
 
 
 # Loads a geojson geometry file, returns the geometry object and the image size at the specified resolution
@@ -104,34 +103,31 @@ def plot_multi_series(series_list, color):
         plt.plot(series, color=color, label=color)
 
 
-def select_pixels(img, coord_file, type):
+def select_pixels(img, coord_file):
     """
     Opens an image, draws red dots, save coords
     """
 
+    comms = " R: pulisci file, ESC conferma "
     # mouse callback function
     def red_dot(event, x, y, flags, param):
         if event == cv2.EVENT_LBUTTONUP:
             with open(coord_file, "a") as f:
-                f.write("{0}, {1}, {2}\n".format(x, y, type))
+                f.write("{0}, {1}\n".format(x, y))
             cv2.circle(img, (x, y), 0, (0, 0, 255), -1)
 
     # interactive display
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     clone = img.copy()
-    cv2.namedWindow('pixel selector '+type, cv2.WINDOW_NORMAL)
-    cv2.setMouseCallback('pixel selector '+type, red_dot)
+    cv2.namedWindow('Pixel selector '+coord_file+comms, cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback('Pixel selector '+coord_file+comms, red_dot)
 
     # event handler
     while (1):
-        cv2.imshow('pixel selector '+type, img)
+        cv2.imshow('Pixel selector '+coord_file+comms, img)
         key = cv2.waitKey(1) & 0xFF
         # escape
         if key == 27 or key == ord('q'):
-            cv2.destroyAllWindows()
-            return
-        # next
-        if key == ord("n"):
             cv2.destroyAllWindows()
             return
         # refresh dots
@@ -149,6 +145,7 @@ def select_single_pixel(img):
     Opens an image, draws red dots, save coords
     """
     current_pixel = ()
+    comms = " R: reset, ESC conferma "
 
     # mouse callback function
     def red_dot(event, x, y, flags, param):
@@ -162,19 +159,15 @@ def select_single_pixel(img):
     # interactive display
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     clone = img.copy()
-    cv2.namedWindow('pixel selector', cv2.WINDOW_NORMAL)
-    cv2.setMouseCallback('pixel selector', red_dot)
+    cv2.namedWindow('Pixel selector'+comms, cv2.WINDOW_NORMAL)
+    cv2.setMouseCallback('Pixel selector'+comms, red_dot)
 
     # event handler
     while (1):
-        cv2.imshow('pixel selector', img)
+        cv2.imshow('Pixel selector'+comms, img)
         key = cv2.waitKey(1) & 0xFF
         # escape
         if key == 27 or key == ord('q'):
-            cv2.destroyAllWindows()
-            return current_pixel
-        # next
-        if key == ord("n"):
             cv2.destroyAllWindows()
             return current_pixel
         # refresh dots

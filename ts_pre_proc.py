@@ -10,7 +10,7 @@ import numpy as np
 lowess = sm.nonparametric.lowess
 
 
-def residual_analysis(y1, y2, plot=False):
+def residual_analysis(y1, y2, fac=0.2, plot=False):
     resid = pd.Series(y1 - y2)
     q25 = resid.quantile(q=0.25)
     q75 = resid.quantile(q=0.75)
@@ -19,8 +19,8 @@ def residual_analysis(y1, y2, plot=False):
         resid.plot.box()
         plt.show()
     iqr = q75-q25
-    lower_lim = q25 - (iqr * 0.2)
-    upper_lim = q75 + (iqr * 0.2)
+    lower_lim = q25 - (iqr * fac)
+    upper_lim = q75 + (iqr * fac)
     outlier_removed = pd.DataFrame(y1)
     outlier_removed.dropna(inplace=True)
     for index, row in outlier_removed.iterrows():
@@ -29,11 +29,12 @@ def residual_analysis(y1, y2, plot=False):
     return outlier_removed
 
 
-# Apply a smoothing algorithm to the series
+# Applica un algoritmo di smoothing alla serie
 def smoothing(pd_series, method, plot=False):
     frac = 0.04
     n_splines = 72
     lam = 0.1
+    resid_fac = 0.2
     lams = np.logspace(-3, 5, 5)
     y = None
     x = pd_series.index
@@ -44,27 +45,31 @@ def smoothing(pd_series, method, plot=False):
         # gam = LinearGAM(s(0, n_splines=n_splines, basis="ps")).gridsearch(pd_series.index[:, None], pd_series, lam=lams)
         y = gam.predict(x)
         method = "LOWESS " + str(frac) + " -> LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
+
     elif method == "lowess-gam2":
         y = lowess(pd_series, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
-        outlier_removed = residual_analysis(pd_series, y, plot)
+        outlier_removed = residual_analysis(pd_series, y, resid_fac, plot)
         if plot:
             plt.scatter(outlier_removed.index, outlier_removed, color="r")
         gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(outlier_removed.index[:, None], outlier_removed)
         y = gam.predict(x)
         method = "LOWESS " + str(frac) + " -> Outlier Removal -> LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
+
     elif method == "gam":
         temp = pd_series.dropna()
         gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(temp.index[:, None], temp)
         print(gam.summary())
         y = gam.predict(x)
         method = "LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
+
     elif method == "lowess":
         y = lowess(pd_series, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
         method = "LOWESS " + str(frac)
+
     return pd.Series(y), method
 
 
-# Apply smoothing to multiple time series (same x)
+# Applica lo smoothing a più serie (stessa x)
 def smoothing_multi_ts(series_list, method):
     smoothed = []
     for series in series_list:
@@ -73,20 +78,22 @@ def smoothing_multi_ts(series_list, method):
     return smoothed, method_t
 
 
-# Extract one pixel time series
+# Estrae la time series di un pixel
 def single_time_series(data, slots, x, y, channel):
     series = []
     x_dates = []
     for idx, image in enumerate(data):
-        series.append(image[y, x, channel])
+        if len(image.shape)==2:
+            series.append(image[y, x])
+        else:
+            series.append(image[y, x, channel])
         x_dates.append(slots[idx][0])
     return x_dates, pd.Series(series)
 
 
-# Extract multiple time series
+# Estrae le time series di più pixel presenti nel file di coordinate specificato
 def multi_time_series(data, slots, coord_file, channel):
-    healthy_series = []
-    modified_series = []
+    series_list = []
     x_dates = []
     for idx, image in enumerate(data):
         x_dates.append(slots[idx][0])
@@ -96,13 +103,13 @@ def multi_time_series(data, slots, coord_file, channel):
             series = []
             vals = line.split(",")
             for idx, image in enumerate(data):
-                series.append(image[int(vals[1]), int(vals[0]), channel])
+                if len(image.shape)==2:
+                    series.append(image[int(vals[1]), int(vals[0])])
+                else:
+                    series.append(image[int(vals[1]), int(vals[0]), channel])
             series = pd.Series(series)
-            if vals[2].strip() == "a":
-                healthy_series.append(series)
-            else:
-                modified_series.append(series)
-    return x_dates, healthy_series, modified_series
+            series_list.append(series)
+    return x_dates, series_list
 
 
 def full_image_time_series(data, slots, channel):
@@ -117,8 +124,11 @@ def full_image_time_series(data, slots, channel):
         for x in range(width):
             series = []
             for idx, image in enumerate(data):
-                series.append(image[y, x, channel])
+                if len(image.shape)==2:
+                    series.append(image[y, x])
+                else:
+                    series.append(image[y, x, channel])
             series = pd.Series(series)
             image_series.append(series)
-    return x_dates, image_series
+    return x_dates, image_series, height, width
 

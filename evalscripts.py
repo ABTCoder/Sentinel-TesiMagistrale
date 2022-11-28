@@ -33,6 +33,34 @@ evalscript_raw = """
     }
 """
 
+evalscript_raw_landsat = """
+    //VERSION=3
+
+    function setup() {
+        return {
+            input: [{
+                bands: ["B04",
+                        "B05",
+                        "dataMask"],
+                units: "REFLECTANCE"
+            }],
+            output: {
+                bands: 1,
+                sampleType: "FLOAT32"
+            }
+        };
+    }
+
+    function evaluatePixel(sample) {
+        if (sample.dataMask == 1)  {
+            let NDVI = (sample.B05 - sample.B04) / (sample.B05 + sample.B04)
+            return [NDVI]
+        } else {
+            return [NaN]
+        }
+    }
+"""
+
 
 evalscript = """
     //VERSION=3
