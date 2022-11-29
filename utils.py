@@ -4,6 +4,7 @@ import pandas as pd
 import os
 import json
 import cv2
+import matplotlib.image as plimg
 
 import matplotlib.pyplot as plt
 from sentinelhub import (
@@ -73,6 +74,15 @@ def load_geometry(file, resolution):
     image_size = bbox_to_dimensions(geom.bbox, resolution=resolution)
     print(f"Image shape at {resolution} m resolution: {image_size} pixels")
     return geom, image_size
+
+
+def save_images(data, area, slots, dir):
+    script_dir = os.path.dirname(__file__)
+    dir = os.path.join(script_dir, dir+"/")
+    if not os.path.isdir(dir):
+        os.makedirs(dir)
+    for idx, image in enumerate(data):
+        plimg.imsave(dir+"/"+area+"_"+slots[idx][0]+"_"+slots[idx][1]+".tiff", image, format="tiff")
 
 
 def show_images(data, dates, start_date, image_size):

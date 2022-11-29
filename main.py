@@ -30,17 +30,17 @@ if not config.sh_client_id or not config.sh_client_secret:
 
 # MAIN PART
 
-area = "cd5"
+area = "ced1"
 
 # CARICAMENTO GEOMETRIE
-resolution = 10
+resolution = 10 #metri
 geom, rss_size = utils.load_geometry("geoms/"+area+".geojson", resolution)
 
 # Crea lista di date : tupla (inizio, fine)
-slots = utils.all_days("2017-01-01", "2022-11-23", "7D", 7)
+slots = utils.all_days("2013-01-01", "2022-11-23", "7D", 7)
 # crea lista di richieste all'api
-list_of_requests = [utils.get_request(config, evalscript_raw, slot, geom, rss_size, "ndvi_gndvi_buffer3",
-                                      data_coll=DataCollection.SENTINEL2_L2A) for slot in slots]
+list_of_requests = [utils.get_request(config, evalscript_raw_landsat, slot, geom, rss_size, "ndvi_gndvi_buffer3",
+                                      data_coll=DataCollection.LANDSAT_OT_L2) for slot in slots]
 list_of_requests = [request.download_list[0] for request in list_of_requests]
 # download data with multiple threads
 data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_threads=5, show_progress=True)
@@ -120,8 +120,8 @@ def main_single():
 # SMOOTHING
 
 
-main_multi()
-
+#main_full_image()
+utils.save_images(data, area, slots, "images")
 
 
 # utils.show_images(data, slots, "2020-04-01",  rss_size)
