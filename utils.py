@@ -31,6 +31,20 @@ def intervals_by_chunks(start, end, n_chunks):
     return slots
 
 
+def all_days_year_reset(start_year, n_years):
+    slots = []
+    for y in range(start_year, start_year+n_years):
+        start = str(y)+"-01-01"
+        end = str(y)+"-12-24"
+        dates = pd.date_range(start=start, end=end, freq="7D")
+        for d in dates:
+            date2 = d + datetime.timedelta(days=7)
+            date = d.strftime("%Y-%m-%d")
+            date2 = date2.strftime("%Y-%m-%d")
+            slots.append((date, date2))
+    return slots
+
+
 def all_days(start, end, freq="D", interval_size=0):
     slots = []
     dates = pd.date_range(start=start, end=end, freq=freq)

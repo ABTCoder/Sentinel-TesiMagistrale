@@ -24,17 +24,17 @@ def residual_analysis(y1, y2, fac=0.2, plot=False):
     outlier_removed = pd.DataFrame(y1)
     outlier_removed.dropna(inplace=True)
     for index, row in outlier_removed.iterrows():
-        if resid[index] < lower_lim or resid[index] > upper_lim:
+        if resid[index] < lower_lim or resid[index] > upper_lim or row[0]<0:
             outlier_removed.drop(index, inplace=True)
     return outlier_removed
 
 
 # Applica un algoritmo di smoothing alla serie
 def smoothing(pd_series, method, plot=False):
-    frac = 0.04
-    n_splines = 72
-    lam = 0.1
-    resid_fac = 0.2
+    frac = 0.04 # 0.04
+    n_splines = 72  # 72
+    lam = 0.1  # 0.1
+    resid_fac = 0.2  # 0.2
     lams = np.logspace(-3, 5, 5)
     y = None
     x = pd_series.index

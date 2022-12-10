@@ -2,8 +2,9 @@ import utils
 import ts_pre_proc
 from sentinelhub import SHConfig
 import pandas as pd
-from evalscripts import evalscript_raw, evalscript_true_color, evalscript_raw_landsat
+from evalscripts import evalscript_raw, evalscript_true_color, evalscript_raw_landsat8, evalscript_raw_landsat7, evalscript_true_color_ls7
 import matplotlib.pyplot as plt
+import matplotlib.image as plimg
 import matplotlib.patches as mpatches
 
 from sentinelhub import (
@@ -30,17 +31,18 @@ if not config.sh_client_id or not config.sh_client_secret:
 
 # MAIN PART
 
-area = "ced1"
+area = "ced2"
 
 # CARICAMENTO GEOMETRIE
-resolution = 10 #metri
+resolution = 30 #metri
 geom, rss_size = utils.load_geometry("geoms/"+area+".geojson", resolution)
 
 # Crea lista di date : tupla (inizio, fine)
-slots = utils.all_days("2013-01-01", "2022-11-23", "7D", 7)
+#slots = utils.all_days("2017-01-01", "2022-12-08", "7D", 7)
+slots = utils.all_days_year_reset(2005, 18)
 # crea lista di richieste all'api
-list_of_requests = [utils.get_request(config, evalscript_raw_landsat, slot, geom, rss_size, "ndvi_gndvi_buffer3",
-                                      data_coll=DataCollection.LANDSAT_OT_L2) for slot in slots]
+list_of_requests = [utils.get_request(config, evalscript_raw_landsat7, slot, geom, rss_size, "ndvi_gndvi_buffer3",
+                                      data_coll=DataCollection.LANDSAT_ETM_L2) for slot in slots]
 list_of_requests = [request.download_list[0] for request in list_of_requests]
 # download data with multiple threads
 data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_threads=5, show_progress=True)
@@ -50,7 +52,7 @@ data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_t
 
 def main_multi():
     # Recupera immagine a colori per riferimento
-    request_true_color = utils.get_request(config, evalscript_true_color, ("2020-05-01", "2020-05-31"), geom, rss_size, "true_color", MimeType.PNG)
+    request_true_color = utils.get_request(config, evalscript_true_color, ("2021-05-01", "2021-05-31"), geom, rss_size, "true_color", MimeType.PNG)
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
     plt.imshow(image)
@@ -86,12 +88,14 @@ def main_multi():
 
 
 def main_full_image():
-    request_true_color = utils.get_request(config, evalscript_true_color, ("2020-01-01", "2020-01-31"), geom, rss_size,
+    request_true_color = utils.get_request(config, evalscript_true_color, ("2022-05-01", "2022-08-31"), geom, rss_size,
                                            "true_color", MimeType.PNG)
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
     plt.imshow(image)
+    plimg.imsave("areas_img/" + area + ".png", image)
     plt.show()
+
 
     x_dates, image_series, height, width = ts_pre_proc.full_image_time_series(data, slots, 0)
     image_series, method = ts_pre_proc.smoothing_multi_ts(image_series, "lowess-gam2")
@@ -120,8 +124,8 @@ def main_single():
 # SMOOTHING
 
 
-#main_full_image()
-utils.save_images(data, area, slots, "images")
+main_full_image()
+#utils.save_images(data, area, slots, "images")
 
 
 # utils.show_images(data, slots, "2020-04-01",  rss_size)
