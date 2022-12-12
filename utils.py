@@ -31,7 +31,7 @@ def intervals_by_chunks(start, end, n_chunks):
     return slots
 
 
-def all_days_year_reset(start_year, n_years):
+def fixed_weeks_per_year(start_year, n_years):
     slots = []
     for y in range(start_year, start_year+n_years):
         start = str(y)+"-01-01"
@@ -45,7 +45,7 @@ def all_days_year_reset(start_year, n_years):
     return slots
 
 
-def all_days(start, end, freq="D", interval_size=0):
+def dates_list(start, end, freq="D", interval_size=0):
     slots = []
     dates = pd.date_range(start=start, end=end, freq=freq)
     for d in dates:

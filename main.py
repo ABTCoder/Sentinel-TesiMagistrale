@@ -38,11 +38,11 @@ resolution = 30 #metri
 geom, rss_size = utils.load_geometry("geoms/"+area+".geojson", resolution)
 
 # Crea lista di date : tupla (inizio, fine)
-#slots = utils.all_days("2017-01-01", "2022-12-08", "7D", 7)
-slots = utils.all_days_year_reset(2005, 18)
+slots = utils.dates_list("2017-01-01", "2022-12-08", "7D", 7)
+#slots = utils.fixed_weeks_per_year(2005, 18)
 # crea lista di richieste all'api
-list_of_requests = [utils.get_request(config, evalscript_raw_landsat7, slot, geom, rss_size, "ndvi_gndvi_buffer3",
-                                      data_coll=DataCollection.LANDSAT_ETM_L2) for slot in slots]
+list_of_requests = [utils.get_request(config, evalscript_raw, slot, geom, rss_size, "ndvi_gndvi_buffer3",
+                                      data_coll=DataCollection.SENTINEL2_L2A) for slot in slots]
 list_of_requests = [request.download_list[0] for request in list_of_requests]
 # download data with multiple threads
 data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_threads=5, show_progress=True)
