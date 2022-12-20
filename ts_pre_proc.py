@@ -3,7 +3,6 @@ import pandas as pd
 from pygam import LinearGAM, LogisticGAM, PoissonGAM, GammaGAM, InvGaussGAM, GAM, s, f, l
 import statsmodels.api as sm
 
-import seaborn as sns
 import numpy as np
 
 
@@ -30,11 +29,14 @@ def residual_analysis(y1, y2, fac=0.2, plot=False):
 
 
 # Applica un algoritmo di smoothing alla serie
-def smoothing(pd_series, method, plot=False):
-    frac = 0.04 # 0.04
-    n_splines = 72  # 72
-    lam = 0.1  # 0.1
-    resid_fac = 0.2  # 0.2
+def smoothing(pd_series, method, params: dict, plot=False):
+    if len(pd_series.dropna().index) == 0:
+        return pd.Series(np.zeros((len(pd_series.index)))), "NODATA"
+
+    frac = params["frac"] # 0.04
+    n_splines = params["n_splines"]  # 72
+    lam = params["lam"]  # 0.1
+    resid_fac = params["resid_fac"]  # 0.2
     lams = np.logspace(-3, 5, 5)
     y = None
     x = pd_series.index
@@ -49,6 +51,7 @@ def smoothing(pd_series, method, plot=False):
     elif method == "lowess-gam2":
         y = lowess(pd_series, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
         outlier_removed = residual_analysis(pd_series, y, resid_fac, plot)
+        print(outlier_removed.index)
         if plot:
             plt.scatter(outlier_removed.index, outlier_removed, color="r")
         gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(outlier_removed.index[:, None], outlier_removed)
@@ -70,10 +73,10 @@ def smoothing(pd_series, method, plot=False):
 
 
 # Applica lo smoothing a più serie (stessa x)
-def smoothing_multi_ts(series_list, method):
+def smoothing_multi_ts(series_list, method, params: dict):
     smoothed = []
     for series in series_list:
-        y, method_t = smoothing(series, method)
+        y, method_t = smoothing(series, method, params)
         smoothed.append(y)
     return smoothed, method_t
 
@@ -83,7 +86,7 @@ def single_time_series(data, slots, x, y, channel):
     series = []
     x_dates = []
     for idx, image in enumerate(data):
-        if len(image.shape)==2:
+        if len(image.shape) == 2:
             series.append(image[y, x])
         else:
             series.append(image[y, x, channel])
@@ -103,7 +106,7 @@ def multi_time_series(data, slots, coord_file, channel):
             series = []
             vals = line.split(",")
             for idx, image in enumerate(data):
-                if len(image.shape)==2:
+                if len(image.shape) == 2:
                     series.append(image[int(vals[1]), int(vals[0])])
                 else:
                     series.append(image[int(vals[1]), int(vals[0]), channel])
@@ -132,3 +135,24 @@ def full_image_time_series(data, slots, channel):
             image_series.append(series)
     return x_dates, image_series, height, width
 
+
+def multi_remove_outliers(series_list, x_dates, params: dict):
+    df = pd.DataFrame()
+    df["date"] = x_dates
+    cols = [df]
+    col_names = ["date"]
+    for i, series in enumerate(series_list):
+        outlier_removed = remove_outliers(series, params)
+        cols.append(outlier_removed)
+        col_names.append(str(i))
+    res = pd.concat(cols, axis=1)
+    res.columns = col_names
+    return res
+
+
+def remove_outliers(series, params: dict):
+    frac = params["frac"]  # 0.04
+    resid_fac = params["resid_fac"]
+    y = lowess(series, series.index, xvals=series.index, frac=frac, is_sorted=True, return_sorted=False)
+    outlier_removed = residual_analysis(series, y, resid_fac, False)
+    return outlier_removed
