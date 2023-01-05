@@ -1,10 +1,11 @@
 import datetime
 import random
+import numpy as np
 import pandas as pd
 import os
 import json
 import cv2
-import matplotlib.image as plimg
+from PIL import Image
 
 import matplotlib.pyplot as plt
 from sentinelhub import (
@@ -90,13 +91,17 @@ def load_geometry(file, resolution):
     return geom, image_size
 
 
-def save_images(data, area, slots, dir):
+def save_images(data, area, slots, folder, channel=0):
     script_dir = os.path.dirname(__file__)
-    dir = os.path.join(script_dir, dir+"/")
-    if not os.path.isdir(dir):
-        os.makedirs(dir)
+    folder = os.path.join(script_dir, folder+"/")
+    if not os.path.isdir(folder):
+        os.makedirs(folder)
     for idx, image in enumerate(data):
-        plimg.imsave(dir+"/"+area+"_"+slots[idx][0]+"_"+slots[idx][1]+".tiff", image, format="tiff")
+        if len(image.shape) > 2:
+            image = Image.fromarray(image[:,:,channel])
+        else:
+            image = Image.fromarray(image)
+        image.save(folder+"/"+area+"_"+slots[idx][0]+"_"+slots[idx][1]+".tiff")
 
 
 def show_images(data, dates, start_date, image_size):
@@ -200,3 +205,7 @@ def select_single_pixel(img):
 
     cv2.destroyAllWindows()
     return current_pixel
+
+
+
+

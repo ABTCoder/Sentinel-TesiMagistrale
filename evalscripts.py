@@ -32,6 +32,41 @@ evalscript_raw = """
         }
     }
 """
+evalscript_raw_snow = """
+    //VERSION=3
+
+    function setup() {
+        return {
+            input: [{
+                bands: ["B04",
+                        "B03",
+                        "B08",
+                        "dataMask",
+                        "CLM",
+                        "SNW"],
+                units: "DN"
+            }],
+            output: {
+                bands: 2,
+                sampleType: "FLOAT32"
+            }
+        };
+    }
+
+    function evaluatePixel(sample) {
+        if (sample.dataMask == 1 || sample.SNW < 0.5)  {
+            if (sample.CLM == 0) {
+                let NDVI = (sample.B08 - sample.B04) / (sample.B08 + sample.B04)
+                let GNDVI = (sample.B08 - sample.B03) / (sample.B08 + sample.B03)
+                return [NDVI, GNDVI]
+            } else {
+                return [NaN, NaN]
+            }
+        } else {
+            return [NaN, NaN]
+        }
+    }
+"""
 
 evalscript_raw_landsat8 = """
     //VERSION=3

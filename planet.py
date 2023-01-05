@@ -92,7 +92,7 @@ def planet_single():
     series = pd.Series(data=series)
     filtered = series.dropna()
     print(len(filtered.index))
-    y, method = ts_pre_proc.smoothing(series, "lowess-gam2", params, True)
+    y, method = ts_pre_proc.smoothing(series, params)
     plt.scatter(filtered.index, filtered, alpha=0.5, color="lightblue")
     plt.title("NDVI - " + method)
     plt.plot(y, color="r")
@@ -106,8 +106,8 @@ def planet_multi():
     utils.select_pixels(true_color_img, "pixels2.csv")
     x_dates, h_series = ts_pre_proc.multi_time_series(data, slots2, "pixels1.csv", 0)
     _, m_series = ts_pre_proc.multi_time_series(data, slots2, "pixels2.csv", 0)
-    h_series, method = ts_pre_proc.smoothing_multi_ts(h_series, "lowess-gam2", params)
-    m_series, method = ts_pre_proc.smoothing_multi_ts(m_series, "lowess-gam2", params)
+    h_series, method = ts_pre_proc.smoothing_multi_ts(h_series, params)
+    m_series, method = ts_pre_proc.smoothing_multi_ts(m_series, params)
 
     # Plotting
     utils.plot_multi_series(h_series, "b")
@@ -133,7 +133,7 @@ def planet_multi():
 def planet_full():
     plimg.imsave("areas_img/" + area + ".png", true_color_img)
     x_dates, image_series, _, _ = ts_pre_proc.full_image_time_series(data, slots2, 0)
-    image_series, method = ts_pre_proc.smoothing_multi_ts(image_series, "lowess-gam2", params)
+    image_series, method = ts_pre_proc.smoothing_multi_ts(image_series, params)
     hpd = pd.concat(image_series, axis=1)
     hpd["date"] = x_dates
     hpd.to_csv("ts/" + area + "_{0}_{1}.csv".format(height, width))
@@ -144,8 +144,11 @@ area = "planet_ced_e"
 params = {
     "frac": 0.08,
     "n_splines": 120,
-    "resid_fac": 0.2,
-    "lam": 0.1
+    "alpha": 0.2,
+    "lam": 0.1,
+    "remove_outliers": True,
+    "method": "gam",
+    "plot": True,
 }
 
 planet_multi()
