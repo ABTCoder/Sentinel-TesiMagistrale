@@ -31,6 +31,7 @@ def smoothing(series, params: dict):
         return pd.Series(np.zeros((len(series.index)))), "NODATA"
 
     frac = params["frac"] # 0.04
+    frac_outliers = params["frac_outliers"]
     n_splines = params["n_splines"]  # 72
     lam = params["lam"]  # 0.1
     alpha = params["alpha"]  # 0.2
@@ -39,7 +40,7 @@ def smoothing(series, params: dict):
     plot = params["plot"]
 
     if params["remove_outliers"] is True:
-        copy = remove_outliers(series, frac, alpha)
+        copy = remove_outliers(series, frac_outliers, alpha)
         if plot:
             plt.scatter(copy.index, copy, color="lightblue")
     else:
@@ -48,25 +49,26 @@ def smoothing(series, params: dict):
     y = None
     x = series.index
     if method == "lowess-gam":
-        y = lowess(copy, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
+        y = lowess(copy.values.ravel(), x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
         temp = pd.Series(y).dropna()
         gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(temp.index[:, None], temp)
         # gam = LinearGAM(s(0, n_splines=n_splines, basis="ps")).gridsearch(pd_series.index[:, None], pd_series, lam=lams)
         y = gam.predict(x)
-        method = "LOWESS " + str(frac) + " -> LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
+        method_title = "LOWESS " + str(frac) + " -> LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
 
     elif method == "gam":
         temp = copy.dropna()
         gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(temp.index[:, None], temp)
         print(gam.summary())
         y = gam.predict(x)
-        method = "LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
+        method_title = "LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
 
     elif method == "lowess":
-        y = lowess(copy, x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
-        method = "LOWESS " + str(frac)
+        y = lowess(copy.values.ravel(), copy.index, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
+        method_title = "LOWESS frac: " + str(frac)
 
-    return pd.Series(y), method
+
+    return pd.Series(y), method_title
 
 
 # Applica lo smoothing a più serie (stessa x)

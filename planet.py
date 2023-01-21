@@ -92,26 +92,33 @@ def planet_single():
     series = pd.Series(data=series)
     filtered = series.dropna()
     print(len(filtered.index))
+    plt.rcParams["figure.figsize"] = (12, 6)
     y, method = ts_pre_proc.smoothing(series, params)
-    plt.scatter(filtered.index, filtered, alpha=0.5, color="lightblue")
-    plt.title("NDVI - " + method)
-    plt.plot(y, color="r")
+    #plt.scatter(filtered.index, filtered, alpha=0.5, color="r")
+    plt.ylim([0, 1])
+    plt.title("Ceduazioni, PlanetScope - " + method)
     plt.ylabel("NDVI")
-    plt.xlabel("SETTIMANA")
+    plt.plot(y, color="g")
+    plt.xlabel("Settimana")
     plt.show()
 
 
 def planet_multi():
-    utils.select_pixels(true_color_img, "pixels1.csv")
-    utils.select_pixels(true_color_img, "pixels2.csv")
-    x_dates, h_series = ts_pre_proc.multi_time_series(data, slots2, "pixels1.csv", 0)
-    _, m_series = ts_pre_proc.multi_time_series(data, slots2, "pixels2.csv", 0)
-    h_series, method = ts_pre_proc.smoothing_multi_ts(h_series, params)
-    m_series, method = ts_pre_proc.smoothing_multi_ts(m_series, params)
+    """
+    Main utilizzato per estrarre le time series di pixel scelti manualmente.
+    Verranno creati due file: nomeArea_control.csv e nomeArea_test.csv.
+    Durante l'esecuzione si potranno scegliere i pixel dei due file in modo separato.
+    """
+    utils.select_pixels(true_color_img, "pixels_control.csv")
+    utils.select_pixels(true_color_img, "pixels_test.csv")
+    x_dates, control_series = ts_pre_proc.multi_time_series(data, slots2, "pixels_control.csv", 0)
+    _, test_series = ts_pre_proc.multi_time_series(data, slots2, "pixels_test.csv", 0)
+    control_series, method = ts_pre_proc.smoothing_multi_ts(control_series, params)
+    test_series, method = ts_pre_proc.smoothing_multi_ts(test_series, params)
 
     # Plotting
-    utils.plot_multi_series(h_series, "b")
-    utils.plot_multi_series(m_series, "r")
+    utils.plot_multi_series(control_series, "b")
+    utils.plot_multi_series(test_series, "r")
     plt.title("NDVI - " + method)
     plt.ylabel("NDVI")
     plt.xlabel("SETTIMANA")
@@ -122,12 +129,12 @@ def planet_multi():
     plt.show()
 
     # Salva in csv
-    hpd = pd.concat(h_series, axis=1)
-    hpd["date"] = x_dates
-    hpd.to_csv("ts/" + area + "_control.csv")
-    mpd = pd.concat(m_series, axis=1)
-    mpd["date"] = x_dates
-    mpd.to_csv("ts/" + area + "_test.csv")
+    cdf = pd.concat(control_series, axis=1)
+    cdf["date"] = x_dates
+    cdf.to_csv("ts/" + area + "_control.csv")
+    tdf = pd.concat(test_series, axis=1)
+    tdf["date"] = x_dates
+    tdf.to_csv("ts/" + area + "_test.csv")
 
 
 def planet_full():
@@ -142,13 +149,14 @@ def planet_full():
 area = "planet_ced_e"
 
 params = {
-    "frac": 0.08,
-    "n_splines": 120,
-    "alpha": 0.2,
+    "frac": 0.06,
+    "n_splines": 72,
+    "alpha": 1,
     "lam": 0.1,
     "remove_outliers": True,
+    "frac_outliers": 0.06,
     "method": "gam",
     "plot": True,
 }
 
-planet_multi()
+planet_single()

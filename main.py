@@ -9,7 +9,6 @@ import matplotlib.patches as mpatches
 import seaborn as sns
 import numpy as np
 import statsmodels.api as sm
-from PIL import Image
 lowess = sm.nonparametric.lowess
 
 from sentinelhub import (
@@ -26,6 +25,7 @@ from sentinelhub import (
 )
 
 config = SHConfig()
+# Specificare l'API Key di sentinel in questa sezione
 '''config.instance_id = '<your instance id>'
 config.sh_client_id = '<your client id>'
 config.sh_client_secret = '<your client secret>'
@@ -36,32 +36,38 @@ if not config.sh_client_id or not config.sh_client_secret:
 
 # MAIN PART
 
-area = "faggeta_1"
+# Nome del geojson da utilizzare all'interno della cartella geoms
+area = "cd5"
 
-# CARICAMENTO GEOMETRIE
+# Caricamento delle geometrie per le immagini NDVI/GNDVI
 resolution = 10 #metri
 geom, size = utils.load_geometry("geoms/"+area+".geojson", resolution)
 
-# GEOMETRIE A COLORI
+# Caricamento delle geometrie per l'immagine a colori di riferimento
 resolution_c = 10 #metri
 geom_color, size_color = utils.load_geometry("geoms/"+area+".geojson", resolution_c)
 
-# Crea lista di date : tupla (inizio, fine)
+# Crea lista di intervalli di date : lista di tuple (inizio, fine)
 slots = utils.dates_list("2017-01-01", "2022-12-31", "7D", 7)
-#slots = utils.fixed_weeks_per_year(2005, 18)
+
 # crea lista di richieste all'api
-list_of_requests = [utils.get_request(config, es.evalscript_raw, slot, geom, size, "ndvi_gndvi_buffer3",
+# I parametri importanti sono l'evalscript e la data collection che specifica il satellite
+list_of_requests = [utils.get_request(config, es.evalscript_raw, slot, geom, size, "cache",
                                       data_coll=DataCollection.SENTINEL2_L2A) for slot in slots]
-request_true_color = utils.get_request(config, es.evalscript_true_color, ("2021-05-01", "2021-07-31"), geom_color, size_color,
+request_true_color = utils.get_request(config, es.evalscript_true_color, ("2022-06-01", "2022-06-30"), geom_color, size_color,
                                        "true_color", MimeType.PNG, data_coll=DataCollection.SENTINEL2_L2A)
 list_of_requests = [request.download_list[0] for request in list_of_requests]
-# download data with multiple threads
-data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_threads=5, show_progress=True)
 
-# utils.print_file_names("ndvi_gndvi_buffer3")
+# Scarica i dati con thread multipli
+data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_threads=5, show_progress=True)
 
 
 def main_multi():
+    """
+    Main utilizzato per estrarre le time series di pixel scelti manualmente.
+    Verranno creati due file: nomeArea_control.csv e nomeArea_test.csv.
+    Durante l'esecuzione si potranno scegliere i pixel dei due file in modo separato.
+    """
     # Recupera immagine a colori per riferimento
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
@@ -69,16 +75,16 @@ def main_multi():
     plt.show()
 
     # Recupera time series per zona di controllo e zona di test
-    utils.select_pixels(image, "pixels1.csv")
-    utils.select_pixels(image, "pixels2.csv")
-    x_dates, h_series = ts_pre_proc.multi_time_series(data, slots, "pixels1.csv", 0)
-    _, m_series = ts_pre_proc.multi_time_series(data, slots, "pixels2.csv", 0)
-    h_series, method = ts_pre_proc.smoothing_multi_ts(h_series, params)
-    m_series, method = ts_pre_proc.smoothing_multi_ts(m_series, params)
+    utils.select_pixels(image, "pixels_control.csv")
+    utils.select_pixels(image, "pixels_test.csv")
+    x_dates, control_series = ts_pre_proc.multi_time_series(data, slots, "pixels_control.csv", 0)
+    _, test_series = ts_pre_proc.multi_time_series(data, slots, "pixels_test.csv", 0)
+    control_series, method = ts_pre_proc.smoothing_multi_ts(control_series, params)
+    test_series, method = ts_pre_proc.smoothing_multi_ts(test_series, params)
 
     # Plotting
-    utils.plot_multi_series(h_series, "b")
-    utils.plot_multi_series(m_series, "r")
+    utils.plot_multi_series(control_series, "b")
+    utils.plot_multi_series(test_series, "r")
     plt.title("NDVI - " + method)
     plt.ylabel("NDVI")
     plt.xlabel("SETTIMANA")
@@ -89,12 +95,12 @@ def main_multi():
     plt.show()
 
     # Salva in csv
-    hpd = pd.concat(h_series, axis=1)
-    hpd["date"] = x_dates
-    hpd.to_csv("ts/"+area+"_control.csv")
-    mpd = pd.concat(m_series, axis=1)
-    mpd["date"] = x_dates
-    mpd.to_csv("ts/"+area+"_test.csv")
+    cdf = pd.concat(control_series, axis=1)
+    cdf["date"] = x_dates
+    cdf.to_csv("ts/"+area+"_control.csv")
+    tdf = pd.concat(test_series, axis=1)
+    tdf["date"] = x_dates
+    tdf.to_csv("ts/"+area+"_test.csv")
 
 
 def main_full():
@@ -109,6 +115,14 @@ def main_full():
     hpd = pd.concat(image_series, axis=1)
     hpd["date"] = x_dates
     hpd.to_csv("ts/"+area+"_{0}_{1}.csv".format(height, width))
+    plt.rcParams["figure.figsize"] = (12, 6)
+    plt.ylim([0, 1])
+    plt.title("Faggeta - "+method)
+    plt.ylabel("NDVI")
+    for s in image_series:
+        plt.plot(s)
+    plt.xlabel("Settimana")
+    plt.show()
 
 
 def main_single():
@@ -116,14 +130,14 @@ def main_single():
     image = true_color_imgs[0]
     pixel = utils.select_single_pixel(image)
     x_dates, series = ts_pre_proc.single_time_series(data, slots, pixel[0], pixel[1], 0)
-    series = pd.Series(data=series)
     filtered = series.dropna()
     print(len(filtered))
     plt.rcParams["figure.figsize"] = (12, 6)
-    plt.scatter(filtered.index, filtered, alpha=0.5, color="red")
+    #plt.ylim([0, 1])
+    #plt.scatter(filtered.index, filtered, alpha=0.5, color="red")
     y, method = ts_pre_proc.smoothing(series, params)
     #plt.title("NDVI - " + method)
-    plt.title("Serie NDVI pulita")
+    plt.title("Ceduazioni, Landsat8 - "+method)
     plt.plot(y, color="g")
     plt.ylabel("NDVI")
     plt.xlabel("Settimana")
@@ -210,9 +224,13 @@ params = {
     "alpha": 1,
     "lam": 0.1,
     "remove_outliers": True,
+    "frac_outliers": 0.06,
     "method": "gam",
     "plot": True,
 }
+
+main_full()
+
 
 
 '''image = Image.open("images_faggeta/faggeta_1_2022-10-09_2022-10-16.tiff")
@@ -221,8 +239,6 @@ plt.colorbar()
 plt.tick_params(left = False, right = False , labelleft = False ,
                 labelbottom = False, bottom = False)
 plt.show()'''
-
-main_single()
 
 #utils.save_images(data, area, slots, "images_faggeta")
 #utils.show_images(data, slots, "2020-04-01",  size)
