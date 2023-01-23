@@ -11,17 +11,28 @@ import utils
 import ts_pre_proc
 import matplotlib.patches as mpatches
 
+"""
+Script per estrarre le time series NDVI dalle immagini planet
+Al momento le immagini vanno scaricate manualmente dall'hub di Planet
+"""
+
+
+# Crea lista di intervalli di date : lista di tuple (inizio, fine)
 slots = utils.dates_list("2016-01-01", "2022-12-31", "7D", 7)
 
+# Intervalli da cui estrarre l'immagine a colori di riferimento
 tcd1 = datetime.datetime.strptime("2021-05-01", "%Y-%m-%d")
 tcd2 = datetime.datetime.strptime("2021-05-30", "%Y-%m-%d")
 
+# Percorso della cartella contenente le immagini scaricate da planet
 dir_path = "ced_e"
 img = None
 ndvi_images = []
 dates = []
 height, width = 0, 0
 true_color_img = None
+
+# Genera le immagini NDVI
 for path in os.scandir(dir_path):
     if path.is_file():
         if path.name[-4:] == ".xml":
@@ -38,6 +49,7 @@ for path in os.scandir(dir_path):
                 fac = float(children[9].text)
                 img[:, :, band-1] = img[:, :, band-1] * fac
 
+            # Formula NDVI
             ndvi_img = (img[:, :, 3] - img[:, :, 0])/(img[:, :, 3] + img[:, :, 0])
             ndvi_images.append(ndvi_img)
 
@@ -61,6 +73,8 @@ data = []
 empty = np.empty((height, width, 1))
 empty[:, :] = np.nan
 first_valid = None
+# Assegna ad ogni intervallo (slot) l'immagine di data compresa nell'intervallo
+# Questo, al fine di ottenere lo stesso formato che si ottiene da SentinelHub
 for i, s in enumerate(slots):
     d1 = datetime.datetime.strptime(s[0], "%Y-%m-%d")
     d2 = datetime.datetime.strptime(s[1], "%Y-%m-%d")
@@ -87,6 +101,10 @@ data = data[first_valid:]
 
 
 def planet_single():
+    """
+    Main utilizzato per estrarre la time series di un pixel a scelta
+    Utile per testare i parametri di smoothing
+    """
     pixel = utils.select_single_pixel(true_color_img)
     x_dates, series = ts_pre_proc.single_time_series(data, slots2, pixel[0], pixel[1], 0)
     series = pd.Series(data=series)
@@ -138,6 +156,10 @@ def planet_multi():
 
 
 def planet_full():
+    """
+    Main utilizzato per estrarre le time series NDVI/GNDVI di tutti i pixel dell'area di studio (cartella ts)
+    Nella cartella areas_img verrà salvata anche l'immagine a colori di riferimento
+    """
     plimg.imsave("areas_img/" + area + ".png", true_color_img)
     x_dates, image_series, _, _ = ts_pre_proc.full_image_time_series(data, slots2, 0)
     image_series, method = ts_pre_proc.smoothing_multi_ts(image_series, params)
@@ -146,17 +168,20 @@ def planet_full():
     hpd.to_csv("ts/" + area + "_{0}_{1}.csv".format(height, width))
 
 
+# Nome area (solo per la scrittura dei file)
 area = "planet_ced_e"
 
+
+# PARAMETRI PRINCIPALI
 params = {
-    "frac": 0.06,
-    "n_splines": 72,
-    "alpha": 1,
-    "lam": 0.1,
-    "remove_outliers": True,
-    "frac_outliers": 0.06,
-    "method": "gam",
-    "plot": True,
+    "frac": 0.06, # Utilizzato dal lowess
+    "n_splines": 72, # Utilizzato dalla GAM
+    "alpha": 1, # Utilizzato nella rimozione degli outlier
+    "lam": 0.1, # Utilizzato dalla GAM
+    "remove_outliers": True, # Effettuare o meno la rimozione degli outlier pre-smoothing
+    "frac_outliers": 0.06, # Utilizzato dal lowess della rimozione degli outlier
+    "method": "gam", # Metodo di smoothing da utilizzare
+    "plot": True, # Attivare alcuni plot di grafici
 }
 
 planet_single()

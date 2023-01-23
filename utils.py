@@ -1,6 +1,4 @@
 import datetime
-import random
-import numpy as np
 import pandas as pd
 import os
 import json
@@ -19,6 +17,15 @@ from sentinelhub import (
 
 
 def intervals_by_chunks(start, end, n_chunks):
+    """
+    Crea n_chunks intervalli compresi tra le date di start ed end
+    Esempio: start = 2017-01-01;  end = 2017-01-03;  n_chunks = 3
+    [("2017-01-01, "2017-01-02"),  ("2017-01-02, "2017-01-03")]
+    :param start: data di inizio
+    :param end: data di fine
+    :param n_chunks: numero di intervalli
+    :return: lista  di lunghezza n_chunks-1 di tuple (ds, de)
+    """
     start = datetime.datetime.strptime(start)
     end = datetime.datetime.strptime(end)
     tdelta = (end - start) / n_chunks
@@ -33,6 +40,13 @@ def intervals_by_chunks(start, end, n_chunks):
 
 
 def fixed_weeks_per_year(start_year, n_years):
+    """
+    Crea una lista di tuple (ds, de) di date a frequenza settimanale per il numero di anni specificato.
+    Il numero di settimane e le date specifiche sono uguali per ogni anno.
+    :param start_year: Anno di inizio
+    :param n_years: numero di anni
+    :return: lista di lunghezza n_years * 52 di tuple (ds, de)
+    """
     slots = []
     for y in range(start_year, start_year+n_years):
         start = str(y)+"-01-01"
@@ -47,6 +61,14 @@ def fixed_weeks_per_year(start_year, n_years):
 
 
 def dates_list(start, end, freq="D", interval_size=0):
+    """
+    Crea una lista di tuple (ds, de) di date a frequenza e lunghezza di intervallo variabile.
+    :param start: data di inizio
+    :param end: data di fine
+    :param freq: frequenza degli intervalli (intervallo tra il primo elemento di una tupla e di quella successiva)
+    :param interval_size: lunghezza dell'intervallo (intervallo tra gli elementi di una stessa tupla)
+    :return: lista di tuple (ds, de)
+    """
     slots = []
     dates = pd.date_range(start=start, end=end, freq=freq)
     for d in dates:
@@ -58,32 +80,53 @@ def dates_list(start, end, freq="D", interval_size=0):
 
 
 def print_file_names(folder_name):
+    """
+    Stampa i nomi dei file in una cartella
+    :param folder_name: path della cartella
+    """
     for folder, _, filenames in os.walk(folder_name):
         for filename in filenames:
             print(os.path.join(folder, filename))
 
 
-def get_request(config, evalscript, time_interval, geom=None, rss_size=None, data_folder=None, mimetype=MimeType.TIFF, data_coll=DataCollection.SENTINEL2_L2A):
+def get_request(config, evalscript, time_interval, geom=None, image_size=None, data_folder=None, mimetype=MimeType.TIFF, data_coll=DataCollection.SENTINEL2_L2A):
+    """
+    Crea un oggetto di richiesta API di SentinelHub
+    :param config: configurazioni API di SentinelHub
+    :param evalscript: script di acquisizione delle bande
+    :param time_interval: tupla (start, end) dell'intervallo temporale da cui estrarre l'immagine
+    :param geom: oggetto della geometria geojson
+    :param image_size: dimensioni dell'immagine (si ottiene con load_geometry)
+    :param data_folder: cartella della cache delle immagini
+    :param mimetype: formato di salvataggio delle immagini
+    :param data_coll: collezioni di dati da cui cercare le immagini
+    :return:
+    """
     return SentinelHubRequest(
         evalscript=evalscript,
         input_data=[
             SentinelHubRequest.input_data(
                 data_collection=data_coll,
                 time_interval=time_interval,
-                mosaicking_order=MosaickingOrder.LEAST_CC,
+                mosaicking_order=MosaickingOrder.LEAST_CC, # Immagine con minor copertura nuvolosa nell'intervallo scelto
             )
         ],
         responses=[SentinelHubRequest.output_response("default", mimetype)],
         bbox=geom.bbox,
-        size=rss_size,
+        size=image_size,
         # geometry=geom,
         config=config,
         data_folder= data_folder
     )
 
 
-# Loads a geojson geometry file, returns the geometry object and the image size at the specified resolution
 def load_geometry(file, resolution):
+    """
+    Carica un geojson e crea l'oggetto geometry e le dimensioni delle immagini da passare alla richiesta API alla risoluzione specificata
+    :param file: path del file geojson
+    :param resolution: risoluzione in metri delle immagini da ottenere
+    :return: (geometry object, image size)
+    """
     imported = json.load(open(file))
     geom = Geometry.from_geojson(imported["features"][0]["geometry"])
     image_size = bbox_to_dimensions(geom.bbox, resolution=resolution)
@@ -92,6 +135,14 @@ def load_geometry(file, resolution):
 
 
 def save_images(data, area, slots, folder, channel=0):
+    """
+    Salva le immagini scaricate dall'API in una cartella specificata
+    :param data: lista delle immagini ottenute dall'API
+    :param area: nome dell'area a fini di salvataggio
+    :param slots: lista di date utilizzato in fase di richiesta API
+    :param folder: path della cartella
+    :param channel: canale delle immagini (in formato tiff) da salvare
+    """
     script_dir = os.path.dirname(__file__)
     folder = os.path.join(script_dir, folder+"/")
     if not os.path.isdir(folder):
@@ -104,9 +155,16 @@ def save_images(data, area, slots, folder, channel=0):
         image.save(folder+"/"+area+"_"+slots[idx][0]+"_"+slots[idx][1]+".tiff")
 
 
-def show_images(data, dates, start_date, image_size):
-    ncols = 4
-    nrows = 3
+def show_images(data, slots, start_date, image_size, ncols=4, nrows=3):
+    """
+    Mostra ncols*nrows immagini dalla lista ottenuta dalla richiesta API partendo dalla data specificata
+    :param data: lista delle immagini ottenute dall'API
+    :param slots: lista di date utilizzato in fase di richiesta API
+    :param start_date: data di inizio da cui mostrare le immagini
+    :param image_size: tupla delle dimensioni delle immagini
+    :param ncols: numero di colonne del plot
+    :param nrows: numero di righe del plot
+    """
     aspect_ratio = image_size[0] / image_size[1]
     subplot_kw = {"xticks": [], "yticks": [], "frame_on": False}
 
@@ -114,8 +172,8 @@ def show_images(data, dates, start_date, image_size):
                             subplot_kw=subplot_kw)
     i = 1
     for idx, image in enumerate(data):
-        s = dates[idx][0]
-        e = dates[idx][1]
+        s = slots[idx][0]
+        e = slots[idx][1]
         if s >= start_date:
             if i >= ncols*nrows:
                 break
@@ -128,13 +186,22 @@ def show_images(data, dates, start_date, image_size):
 
 
 def plot_multi_series(series_list, color):
+    """
+    Grafica le time series della lista fornita
+    :param series_list: lista di time series (lista python, numpy array, o pandas series)
+    :param color: colore del plot
+    """
     for series in series_list:
         plt.plot(series, color=color, label=color)
 
 
 def select_pixels(img, coord_file):
     """
-    Opens an image, draws red dots, save coords
+    Tool di selezione e salvataggio dei pixel di una data immagine.
+    Premere R per resettare il file delle cordinate, ESC per confermare le selezioni.
+    Evitare di chiudere la finestra tramite il tasto di chiusura.
+    :param img: l'immagine da cui selezionare i pixel
+    :param coord_file: file in cui salvare le coordinate
     """
 
     comms = " R: pulisci file, ESC conferma "
@@ -171,7 +238,11 @@ def select_pixels(img, coord_file):
 
 def select_single_pixel(img):
     """
-    Opens an image, draws red dots, save coords
+    Tool per selezionare un solo pixel di una data immagine.
+    Premere R per annullare, ESC per confermare la selezione.
+    Evitare di chiudere la finestra tramite il tasto di chiusura.
+    :param img: l'immagine da cui selezionare il pixel
+    :return: (x, y) coordinate del pixel
     """
     current_pixel = ()
     comms = " R: reset, ESC conferma "

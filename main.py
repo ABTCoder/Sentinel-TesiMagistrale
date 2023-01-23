@@ -65,7 +65,7 @@ data = SentinelHubDownloadClient(config=config).download(list_of_requests, max_t
 def main_multi():
     """
     Main utilizzato per estrarre le time series di pixel scelti manualmente.
-    Verranno creati due file: nomeArea_control.csv e nomeArea_test.csv.
+    Verranno creati due file: nomeArea_control.csv e nomeArea_test.csv (cartella ts)
     Durante l'esecuzione si potranno scegliere i pixel dei due file in modo separato.
     """
     # Recupera immagine a colori per riferimento
@@ -104,6 +104,10 @@ def main_multi():
 
 
 def main_full():
+    """
+    Main utilizzato per estrarre le time series NDVI/GNDVI di tutti i pixel dell'area di studio (cartella ts)
+    Nella cartella areas_img verrà salvata anche l'immagine a colori di riferimento
+    """
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
     plt.imshow(image)
@@ -126,6 +130,10 @@ def main_full():
 
 
 def main_single():
+    """
+    Main utilizzato per estrarre la time series di un pixel a scelta
+    Utile per testare i parametri di smoothing
+    """
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
     pixel = utils.select_single_pixel(image)
@@ -146,6 +154,10 @@ def main_single():
 
 
 def no_smoothing():
+    """
+    Main utilizzato per ottenere le time series di tutti i pixel applicando solo la fase di rimozione degli outlier
+    (cartella ts/no_smoothing
+    """
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
     plt.imshow(image)
@@ -158,6 +170,10 @@ def no_smoothing():
 
 
 def raw():
+    """
+    Main utilizzato per ottenere le time series grezze di tutti i pixel dell'area di studio
+    (cartella ts/raw)
+    """
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
     plt.imshow(image)
@@ -170,21 +186,10 @@ def raw():
     dataframe.to_csv("ts/" + area + "_raw_{0}_{1}.csv".format(height, width))
 
 
-def yearly_lowess():
-    true_color_imgs = request_true_color.get_data()
-    image = true_color_imgs[0]
-    plt.imshow(image)
-    plimg.imsave("areas_img/" + area + ".png", image)
-    plt.show()
-
-    x_dates, image_series, height, width = ts_pre_proc.full_image_time_series(data, slots, 0)
-    dataframe = ts_pre_proc.multi_remove_outliers(image_series, x_dates, params)
-    dataframe["date"] = pd.to_datetime(dataframe["date"])
-    res = ts_pre_proc.yearly_lowess(dataframe)
-    res.to_csv("ts/yearly_lowess/" + area + "_yearly_lowess_{0}_{1}.csv".format(height, width))
-
-
 def yearly_box_plot():
+    """
+    Main di test
+    """
     fig, axs = plt.subplots(3, 1, sharey=True, figsize=(20, 10))
     true_color_imgs = request_true_color.get_data()
     image = true_color_imgs[0]
@@ -218,15 +223,16 @@ def yearly_box_plot():
     plt.show()
 
 
+# PARAMETRI PRINCIPALI
 params = {
-    "frac": 0.06,
-    "n_splines": 72,
-    "alpha": 1,
-    "lam": 0.1,
-    "remove_outliers": True,
-    "frac_outliers": 0.06,
-    "method": "gam",
-    "plot": True,
+    "frac": 0.06, # Utilizzato dal lowess
+    "n_splines": 72, # Utilizzato dalla GAM
+    "alpha": 1, # Utilizzato nella rimozione degli outlier
+    "lam": 0.1, # Utilizzato dalla GAM
+    "remove_outliers": True, # Effettuare o meno la rimozione degli outlier pre-smoothing
+    "frac_outliers": 0.06, # Utilizzato dal lowess della rimozione degli outlier
+    "method": "gam", # Metodo di smoothing da utilizzare
+    "plot": True, # Attivare alcuni plot di grafici
 }
 
 main_full()
