@@ -15,6 +15,9 @@ from sentinelhub import (
     Geometry
 )
 
+"""
+Questo script contiene diverse funzioni di utilità per l'estrazione e la visualizzazione delle time series
+"""
 
 def intervals_by_chunks(start, end, n_chunks):
     """
@@ -139,7 +142,7 @@ def save_images(data, area, slots, folder, channel=0):
     Salva le immagini scaricate dall'API in una cartella specificata
     :param data: lista delle immagini ottenute dall'API
     :param area: nome dell'area a fini di salvataggio
-    :param slots: lista di date utilizzato in fase di richiesta API
+    :param slots: lista di date utilizzata in fase di richiesta API
     :param folder: path della cartella
     :param channel: canale delle immagini (in formato tiff) da salvare
     """
@@ -159,7 +162,7 @@ def show_images(data, slots, start_date, image_size, ncols=4, nrows=3):
     """
     Mostra ncols*nrows immagini dalla lista ottenuta dalla richiesta API partendo dalla data specificata
     :param data: lista delle immagini ottenute dall'API
-    :param slots: lista di date utilizzato in fase di richiesta API
+    :param slots: lista di date utilizzata in fase di richiesta API
     :param start_date: data di inizio da cui mostrare le immagini
     :param image_size: tupla delle dimensioni delle immagini
     :param ncols: numero di colonne del plot

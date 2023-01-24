@@ -8,8 +8,19 @@ import numpy as np
 
 lowess = sm.nonparametric.lowess
 
+"""
+Questo script contiene le principali funzione di pre-processing e smoothing delle time series.
+"""
+
 
 def remove_outliers(y, frac, alpha=0.2):
+    """
+    Algoritmo di rimozione degli outlier basato su tsclean del pacchetto forecast per R
+    :param y: time series in formato pandas.Series
+    :param frac: frazione di dati da utilizzare nello smoothin lowess
+    :param alpha: fattore per la definizione dei limiti inferiori e superiori per la sogliatura
+    :return: time series processata in formato pandas.Dataframe
+    """
     y_smoothed = lowess(y, y.index, xvals=y.index, frac=frac, is_sorted=True, return_sorted=False)
     resid = pd.Series(y - y_smoothed)
     q25 = resid.quantile(q=0.25)
@@ -25,8 +36,13 @@ def remove_outliers(y, frac, alpha=0.2):
     return outlier_removed
 
 
-# Applica un algoritmo di smoothing alla serie
 def smoothing(series, params: dict):
+    """
+    Applica la rimozione degli outlier e lo smoothing
+    :param series: time series in formato pandas.Series
+    :param params: dizionario dei parametri (vedere main.py)
+    :return: (time series processata, info sul metodo)
+    """
     if len(series.dropna().index) == 0:
         return pd.Series(np.zeros((len(series.index)))), "NODATA"
 
@@ -52,7 +68,7 @@ def smoothing(series, params: dict):
         y = lowess(copy.values.ravel(), x, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
         temp = pd.Series(y).dropna()
         gam = LinearGAM(s(0, n_splines=n_splines, basis="ps", lam=lam)).fit(temp.index[:, None], temp)
-        # gam = LinearGAM(s(0, n_splines=n_splines, basis="ps")).gridsearch(pd_series.index[:, None], pd_series, lam=lams)
+        # gam = LinearGAM(s(0, n_splines=n_splines, basis="ps")).gridsearch(temp.index[:, None], temp, lam=lams)
         y = gam.predict(x)
         method_title = "LOWESS " + str(frac) + " -> LinearGAM n_splines: " + str(n_splines) + ", lam: "+str(lam)
 
@@ -67,12 +83,16 @@ def smoothing(series, params: dict):
         y = lowess(copy.values.ravel(), copy.index, xvals=x, frac=frac, is_sorted=True, return_sorted=False)
         method_title = "LOWESS frac: " + str(frac)
 
-
     return pd.Series(y), method_title
 
 
-# Applica lo smoothing a più serie (stessa x)
 def smoothing_multi_ts(series_list, params: dict):
+    """
+    Applica lo smoothing alle time series della lista fornita (ottenuta da multi_time_series o full_image_time_series)
+    :param series_list: lista delle time series in formato pandas.Series
+    :param params: dizionario dei parametri (vedere in main.py)
+    :return: (lista di time series processata, info sul metodo)
+    """
     smoothed = []
     for series in series_list:
         y, method_t = smoothing(series, params)
@@ -80,8 +100,16 @@ def smoothing_multi_ts(series_list, params: dict):
     return smoothed, method_t
 
 
-# Estrae la time series di un pixel
 def single_time_series(data, slots, x, y, channel):
+    """
+    Estrae la time series di un singolo pixel dalla lista di immagini fornita
+    :param data: lista delle immagini ottenute dall'API
+    :param slots: lista di date utilizzata in fase di richiesta API
+    :param x: coordinata x del pixel
+    :param y: coordinata y del pixel
+    :param channel: canale da cui estrarre i valori per la time series
+    :return: time series in formato pandas.Series
+    """
     series = []
     x_dates = []
     for idx, image in enumerate(data):
@@ -93,8 +121,16 @@ def single_time_series(data, slots, x, y, channel):
     return x_dates, pd.Series(series)
 
 
-# Estrae le time series di più pixel presenti nel file di coordinate specificato
 def multi_time_series(data, slots, coord_file, channel):
+    """
+    Estrae e restituisce le time series dei pixel specificati nel file testuale di coordinate fornito.
+    Restituisce inoltre la lista univoca di date (primi elementi delle tuple in slots).
+    :param data: lista delle immagini ottenute dall'API
+    :param slots: lista di date utilizzata in fase di richiesta API
+    :param coord_file: file di coordinate (creato con il selettore di pixel)
+    :param channel: canale da cui estrarre i valori per la time series
+    :return: (lista di date, lista di time series)  ogni time series è in formato pandas.Series
+    """
     series_list = []
     x_dates = []
     for idx, image in enumerate(data):
@@ -115,6 +151,14 @@ def multi_time_series(data, slots, coord_file, channel):
 
 
 def full_image_time_series(data, slots, channel):
+    """
+    Estrae le time series di tutti i pixel dell'area di studio
+    Restituisce inoltre la lista univoca di date (primi elementi delle tuple in slots), l'altezza e la larghezza delle immagini
+    :param data: lista delle immagini ottenute dall'API
+    :param slots: lista di date utilizzata in fase di richiesta API
+    :param channel: canale da cui estrarre i valori per la time series
+    :return: (lista di date, lista di time series, altezza, larghezza)
+    """
     image_series = []
     x_dates = []
     height, width = data[0].shape[0], data[0].shape[1]
@@ -133,6 +177,9 @@ def full_image_time_series(data, slots, channel):
             series = pd.Series(series)
             image_series.append(series)
     return x_dates, image_series, height, width
+
+
+# Funzioni di test
 
 
 def multi_remove_outliers(series_list, x_dates, params: dict):
